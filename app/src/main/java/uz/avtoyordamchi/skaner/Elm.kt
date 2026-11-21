@@ -1,50 +1,32 @@
 package uz.avtoyordamchi.skaner
 
-import java.io.InputStream
-import java.io.OutputStream
-import java.net.InetSocketAddress
-import java.net.Socket
-import javax.net.SocketFactory
+/** ELM327 bilan gaplashish va OBD-II javoblarini o'qish. */
+class Elm(private val ulanish: Ulanish) {
 
-/** Wi-Fi ELM327 bilan aloqa va OBD-II javoblarini o'qish. */
-class Elm(private val factory: SocketFactory) {
-
-    private var socket: Socket? = null
-    private lateinit var inp: InputStream
-    private lateinit var out: OutputStream
     var isCan = true
         private set
 
-    fun ulan(host: String, port: Int) {
-        val s = factory.createSocket()
-        s.connect(InetSocketAddress(host, port), 8000)
-        s.soTimeout = 1000
-        socket = s
-        inp = s.getInputStream()
-        out = s.getOutputStream()
-    }
-
-    fun yop() {
-        try { socket?.close() } catch (_: Exception) {}
-        socket = null
-    }
-
-    val ulanganmi: Boolean get() = socket?.isConnected == true && socket?.isClosed == false
+    fun yop() = ulanish.yop()
 
     /** Buyruq yuboradi va '>' belgisigacha kelgan qatorlarni qaytaradi. */
     @Synchronized
-    fun cmd(c: String, kutish: Long = 10_000): List<String> {
-        out.write((c + "\r").toByteArray(Charsets.US_ASCII))
-        out.flush()
+    fun cmd(c: String, kutish: Long = 6_000): List<String> {
+        val inp = ulanish.kirish
+        // Oldingi javobdan qolgan baytlarni tozalash
+        try { while (inp.available() > 0) inp.read() } catch (_: Exception) {}
+        ulanish.chiqish.write((c + "\r").toByteArray(Charsets.US_ASCII))
+        ulanish.chiqish.flush()
         val sb = StringBuilder()
         val buf = ByteArray(512)
         val t0 = System.currentTimeMillis()
         while (!sb.contains('>') && System.currentTimeMillis() - t0 < kutish) {
-            try {
-                val n = inp.read(buf)
+            val bor = try { inp.available() } catch (_: Exception) { 0 }
+            if (bor > 0) {
+                val n = inp.read(buf, 0, minOf(bor, buf.size))
                 if (n < 0) break
                 sb.append(String(buf, 0, n, Charsets.US_ASCII))
-            } catch (_: java.net.SocketTimeoutException) {
+            } else {
+                Thread.sleep(8)
             }
         }
         return sb.toString().replace(">", "")
@@ -55,8 +37,8 @@ class Elm(private val factory: SocketFactory) {
     }
 
     fun boshlash(): String {
-        val versiya = cmd("ATZ", 5000).joinToString(" ")
-        for (c in listOf("ATE0", "ATL0", "ATS0", "ATH0", "ATSP0")) cmd(c)
+        val versiya = cmd("ATZ", 4000).joinToString(" ")
+        for (c in listOf("ATE0", "ATL0", "ATS0", "ATH0", "ATAT1", "ATSP0")) cmd(c, 2000)
         return versiya
     }
 
@@ -72,22 +54,35 @@ class Elm(private val factory: SocketFactory) {
 
     fun kuchlanish(): String = cmd("ATRV").joinToString(" ")
 
-    fun pid(p: String): IntArray? {
-        val r = cmd(p)
+    /** Javobdan kutilgan sarlavhadan keyingi baytlarni ajratadi. */
+    private fun baytlar(r: List<String>, sarlavha: String, otkazish: Int = 0): IntArray? {
         if (!yaxshi(r)) return null
-        val kutilgan = "4" + p[1] + p.substring(2)
         for (q in hexQatorlar(r)) {
-            val i = q.indexOf(kutilgan)
+            val i = q.indexOf(sarlavha)
             if (i >= 0) {
-                val b = q.substring(i + 4)
+                val b = q.substring(minOf(q.length, i + sarlavha.length + otkazish * 2))
+                if (b.length < 2) return null
                 return IntArray(b.length / 2) { b.substring(it * 2, it * 2 + 2).toInt(16) }
             }
         }
         return null
     }
 
+    /** Joriy qiymat (mode 01). p = "010C" kabi. */
+    fun pid(p: String): IntArray? = baytlar(cmd(p), "41" + p.substring(2))
+
+    /** Freeze frame qiymati (mode 02, 0-kadr). p = "010C" kabi. */
+    fun muzlatilgan(p: String): IntArray? = baytlar(cmd("02" + p.substring(2) + "00"), "42" + p.substring(2), 1)
+
+    /** Freeze frame'ni yozib qoldirgan xato kodi. */
+    fun muzlatilganKod(): String? {
+        val b = muzlatilgan("0102") ?: return null
+        if (b.size < 2 || (b[0] == 0 && b[1] == 0)) return null
+        return dtcNomi(b[0], b[1])
+    }
+
     fun vin(): String? {
-        val r = cmd("0902", 15_000)
+        val r = cmd("0902", 10_000)
         if (!yaxshi(r)) return null
         val data = hexQatorlar(r).joinToString("")
         val i = data.indexOf("4902")
@@ -111,7 +106,7 @@ class Elm(private val factory: SocketFactory) {
     /** mode: "03" saqlangan, "07" kutilayotgan, "0A" doimiy xatolar. */
     fun xatolar(mode: String): List<String> {
         val javobKodi = "4" + mode.substring(1)
-        var qatorlar = hexQatorlar(cmd(mode, 15_000))
+        var qatorlar = hexQatorlar(cmd(mode, 10_000))
         if (isCan && qatorlar.size > 1 && qatorlar[0].length <= 3) qatorlar = qatorlar.drop(1)
         val data = qatorlar.joinToString("")
         val i = data.indexOf(javobKodi)
@@ -133,8 +128,40 @@ class Elm(private val factory: SocketFactory) {
         return kodlar
     }
 
+    /** Ekologik o'z-o'zini tekshirish monitorlari (PID 0101). */
+    fun tayyorlik(): List<Monitor> {
+        val a = pid("0101") ?: return emptyList()
+        if (a.size < 4) return emptyList()
+        val b = a[1]; val c = a[2]; val d = a[3]
+        val natija = mutableListOf<Monitor>()
+        fun qosh(nom: String, mavjud: Boolean, tugallanmagan: Boolean) {
+            if (mavjud) natija.add(Monitor(nom, true, !tugallanmagan))
+        }
+        qosh("Tutashmaslik nazorati", b and 0x01 != 0, b and 0x10 != 0)
+        qosh("Yoqilg'i tizimi", b and 0x02 != 0, b and 0x20 != 0)
+        qosh("Qismlar nazorati", b and 0x04 != 0, b and 0x40 != 0)
+        val dizel = b and 0x08 != 0
+        if (!dizel) {
+            qosh("Katalizator", c and 0x01 != 0, d and 0x01 != 0)
+            qosh("Isitiladigan katalizator", c and 0x02 != 0, d and 0x02 != 0)
+            qosh("Bug'larni ushlash (EVAP)", c and 0x04 != 0, d and 0x04 != 0)
+            qosh("Ikkilamchi havo", c and 0x08 != 0, d and 0x08 != 0)
+            qosh("Konditsioner", c and 0x10 != 0, d and 0x10 != 0)
+            qosh("Kislorod datchigi", c and 0x20 != 0, d and 0x20 != 0)
+            qosh("Kislorod datchigi isitgichi", c and 0x40 != 0, d and 0x40 != 0)
+            qosh("EGR tizimi", c and 0x80 != 0, d and 0x80 != 0)
+        } else {
+            qosh("NMHC katalizatori", c and 0x01 != 0, d and 0x01 != 0)
+            qosh("NOx tozalash", c and 0x02 != 0, d and 0x02 != 0)
+            qosh("Turbo bosimi", c and 0x08 != 0, d and 0x08 != 0)
+            qosh("Kuyindi filtri (DPF)", c and 0x40 != 0, d and 0x40 != 0)
+            qosh("EGR/VVT tizimi", c and 0x80 != 0, d and 0x80 != 0)
+        }
+        return natija
+    }
+
     /** Saqlangan xatolarni o'chiradi ('chek'ni o'chiradi). */
-    fun xatolarniOchir(): Boolean = yaxshi(cmd("04", 10_000))
+    fun xatolarniOchir(): Boolean = yaxshi(cmd("04", 8_000))
 
     companion object {
         private val XATOLAR = listOf("NO DATA", "ERROR", "?", "UNABLE TO CONNECT", "STOPPED", "CAN ERROR", "BUS INIT")
@@ -163,23 +190,31 @@ class Elm(private val factory: SocketFactory) {
     }
 }
 
+data class Monitor(val nom: String, val mavjud: Boolean, val tayyor: Boolean)
+
 /** Datchiklar: PID -> (nomi, birligi, hisoblash). */
-data class Datchik(val pid: String, val nom: String, val birlik: String, val f: (IntArray) -> Number)
+data class Datchik(val pid: String, val nom: String, val birlik: String, val ikonka: String, val f: (IntArray) -> Number)
+
+private fun yaxlit(x: Double) = Math.round(x * 10) / 10.0
 
 val DATCHIKLAR = listOf(
-    Datchik("010C", "Motor aylanishi", "ayl/min") { a -> (a[0] * 256 + a[1]) / 4 },
-    Datchik("0105", "Sovutish suyuqligi", "°C") { a -> a[0] - 40 },
-    Datchik("010D", "Tezlik", "km/soat") { a -> a[0] },
-    Datchik("0104", "Motor yuklamasi", "%") { a -> Math.round(a[0] * 1000.0 / 255) / 10.0 },
-    Datchik("0111", "Drossel holati", "%") { a -> Math.round(a[0] * 1000.0 / 255) / 10.0 },
-    Datchik("0106", "Qisqa yoqilg'i tuzatish (STFT)", "%") { a -> Math.round((a[0] - 128) * 1000.0 / 128) / 10.0 },
-    Datchik("0107", "Uzoq yoqilg'i tuzatish (LTFT)", "%") { a -> Math.round((a[0] - 128) * 1000.0 / 128) / 10.0 },
-    Datchik("010B", "Kollektor bosimi (MAP)", "kPa") { a -> a[0] },
-    Datchik("0110", "Havo sarfi (MAF)", "g/s") { a -> (a[0] * 256 + a[1]) / 100.0 },
-    Datchik("010F", "Kirish havosi harorati", "°C") { a -> a[0] - 40 },
-    Datchik("010E", "O't oldirish burchagi", "°") { a -> a[0] / 2.0 - 64 },
-    Datchik("0142", "Blok kuchlanishi", "V") { a -> (a[0] * 256 + a[1]) / 1000.0 },
-    Datchik("011F", "Motor ishlagan vaqt", "s") { a -> a[0] * 256 + a[1] },
-    Datchik("0121", "'Chek' bilan yurilgan masofa", "km") { a -> a[0] * 256 + a[1] },
-    Datchik("0131", "Xatolar o'chirilgandan beri", "km") { a -> a[0] * 256 + a[1] },
+    Datchik("010C", "Motor aylanishi", "ayl/min", "shesterna") { a -> (a[0] * 256 + a[1]) / 4 },
+    Datchik("0105", "Sovutish suyuqligi", "°C", "harorat") { a -> a[0] - 40 },
+    Datchik("010D", "Tezlik", "km/soat", "raketa") { a -> a[0] },
+    Datchik("0104", "Motor yuklamasi", "%", "kuchlanish") { a -> yaxlit(a[0] * 100.0 / 255) },
+    Datchik("0111", "Drossel holati", "%", "shamol") { a -> yaxlit(a[0] * 100.0 / 255) },
+    Datchik("0106", "Qisqa yoqilg'i tuzatish", "%", "tomchi") { a -> yaxlit((a[0] - 128) * 100.0 / 128) },
+    Datchik("0107", "Uzoq yoqilg'i tuzatish", "%", "tomchi") { a -> yaxlit((a[0] - 128) * 100.0 / 128) },
+    Datchik("010B", "Kollektor bosimi", "kPa", "shamol") { a -> a[0] },
+    Datchik("0110", "Havo sarfi (MAF)", "g/s", "shamol") { a -> (a[0] * 256 + a[1]) / 100.0 },
+    Datchik("010F", "Kirish havosi", "°C", "qor") { a -> a[0] - 40 },
+    Datchik("0146", "Tashqi havo", "°C", "qor") { a -> a[0] - 40 },
+    Datchik("010E", "O't oldirish burchagi", "°", "olov") { a -> a[0] / 2.0 - 64 },
+    Datchik("012F", "Yoqilg'i darajasi", "%", "yoqilgi") { a -> yaxlit(a[0] * 100.0 / 255) },
+    Datchik("0142", "Blok kuchlanishi", "V", "akkumulyator") { a -> (a[0] * 256 + a[1]) / 1000.0 },
+    Datchik("011F", "Motor ishlagan vaqt", "s", "taymer") { a -> a[0] * 256 + a[1] },
+    Datchik("0121", "'Chek' bilan yurilgan", "km", "chiroq") { a -> a[0] * 256 + a[1] },
+    Datchik("0131", "Xatolar o'chirilgandan beri", "km", "supurgi") { a -> a[0] * 256 + a[1] },
 )
+
+fun datchik(pid: String): Datchik? = DATCHIKLAR.firstOrNull { it.pid == pid }
