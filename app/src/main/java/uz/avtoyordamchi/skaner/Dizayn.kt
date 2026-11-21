@@ -64,7 +64,7 @@ object Shrift {
     fun raqam(ctx: Context) = ol(ctx, "orbitron_bold")
 }
 
-/** 3D ikonkalar (assets/icons/*.png). */
+/** 3D ikonkalar: assets ichidagi icons papkasidagi PNG fayllar. */
 object Ikonka {
     private val kesh = HashMap<String, Bitmap?>()
 
