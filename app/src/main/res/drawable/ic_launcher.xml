@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Fon -->
+    <path
+        android:fillColor="#0B1226"
+        android:pathData="M24,0h60a24,24 0,0 1,24 24v60a24,24 0,0 1,-24 24h-60a24,24 0,0 1,-24 -24v-60a24,24 0,0 1,24 -24z" />
+    <!-- O'lchagich yo'li -->
+    <path
+        android:strokeColor="#1E2A47"
+        android:strokeWidth="8"
+        android:strokeLineCap="round"
+        android:pathData="M33.5,74.5A29,29 0,1 1,74.5 74.5" />
+    <!-- Yoritilgan qism -->
+    <path
+        android:strokeColor="#22D3EE"
+        android:strokeWidth="8"
+        android:strokeLineCap="round"
+        android:pathData="M33.5,74.5A29,29 0,0 1,54 25" />
+    <path
+        android:strokeColor="#3D8BFF"
+        android:strokeWidth="8"
+        android:strokeLineCap="round"
+        android:pathData="M54,25A29,29 0,0 1,79.1 39.5" />
+    <!-- Strelka -->
+    <path
+        android:strokeColor="#F4F7FF"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:pathData="M54,54L71,41" />
+    <path
+        android:fillColor="#F4F7FF"
+        android:pathData="M54,54m-6,0a6,6 0,1 1,12 0a6,6 0,1 1,-12 0" />
+</vector>
