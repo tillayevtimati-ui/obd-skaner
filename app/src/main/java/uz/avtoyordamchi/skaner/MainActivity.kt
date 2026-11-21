@@ -13,7 +13,7 @@ import android.os.Bundle
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
-import android.widget.Button
+import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -25,21 +25,31 @@ import javax.net.SocketFactory
 
 class MainActivity : Activity() {
 
-    private val KOK = Color.parseColor("#1F4FD8")
-    private val FON = Color.parseColor("#F3F5F9")
-    private val QIZIL = Color.parseColor("#D93025")
-    private val SARIQ = Color.parseColor("#E3A008")
-    private val YASHIL = Color.parseColor("#188038")
-    private val KULRANG = Color.parseColor("#5F6368")
+    // ------------------------------------------------------------ ranglar
+    private val FON1 = Color.parseColor("#070B16")
+    private val FON2 = Color.parseColor("#101A33")
+    private val KARTA = Color.parseColor("#141E38")
+    private val CHEGARA = Color.parseColor("#23305A")
+    private val OQ = Color.parseColor("#F4F7FF")
+    private val XIRA = Color.parseColor("#8B98B8")
+    private val KOK = Color.parseColor("#3D8BFF")
+    private val FIRUZA = Color.parseColor("#22D3EE")
+    private val YASHIL = Color.parseColor("#22C55E")
+    private val SARIQ = Color.parseColor("#F59E0B")
+    private val QIZIL = Color.parseColor("#EF4444")
 
     private lateinit var hostEdit: EditText
     private lateinit var portEdit: EditText
+    private lateinit var gauge: GaugeView
+    private lateinit var gaugeOsti: TextView
+    private lateinit var ulanishChip: TextView
     private lateinit var holat: TextView
     private lateinit var natijalar: LinearLayout
-    private lateinit var tekshirBtn: Button
-    private lateinit var jonliBtn: Button
-    private lateinit var ochirBtn: Button
-    private lateinit var ulashBtn: Button
+    private lateinit var asosiyBtn: TextView
+    private lateinit var jonliBtn: LinearLayout
+    private lateinit var tozalashBtn: LinearLayout
+    private lateinit var ulashBtn: LinearLayout
+    private lateinit var jonliMatn: TextView
 
     @Volatile private var band = false
     @Volatile private var jonli = false
@@ -47,65 +57,97 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.statusBarColor = FON1
+        window.navigationBarColor = FON2
         val prefs = getSharedPreferences("sozlama", Context.MODE_PRIVATE)
 
         val ildiz = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(FON)
-            setPadding(dp(16), dp(24), dp(16), dp(16))
+            setPadding(dp(18), dp(20), dp(18), dp(28))
         }
 
-        ildiz.addView(TextView(this).apply {
-            text = "Avto Skaner"
-            textSize = 26f
-            setTypeface(typeface, Typeface.BOLD)
-            setTextColor(Color.parseColor("#111827"))
-        })
-        ildiz.addView(TextView(this).apply {
-            text = "Wi-Fi ELM327 orqali mashinani tekshirish"
-            textSize = 14f
-            setTextColor(KULRANG)
-            setPadding(0, 0, 0, dp(12))
-        })
-
-        val manzilQator = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        hostEdit = EditText(this).apply {
-            setText(prefs.getString("host", "192.168.0.10"))
-            hint = "Skaner manzili"
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
-            textSize = 15f
+        // ---------- Sarlavha
+        val tepa = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
         }
-        portEdit = EditText(this).apply {
-            setText(prefs.getInt("port", 35000).toString())
-            hint = "Port"
-            inputType = InputType.TYPE_CLASS_NUMBER
-            textSize = 15f
+        val sarlavhaBlok = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        sarlavhaBlok.addView(matn("AVTO DIAGNOSTIKA", 11f, FIRUZA, "sans-serif-medium").apply { letterSpacing = 0.18f })
+        sarlavhaBlok.addView(matn("Avto Skaner", 26f, OQ, "sans-serif-medium"))
+        tepa.addView(sarlavhaBlok, LinearLayout.LayoutParams(0, -2, 1f))
+        ulanishChip = matn("●  Kutilmoqda", 12f, XIRA, "sans-serif-medium").apply {
+            setPadding(dp(12), dp(6), dp(12), dp(6))
+            background = shakl(Color.parseColor("#1A2442"), dp(20).toFloat(), CHEGARA)
         }
-        manzilQator.addView(hostEdit, LinearLayout.LayoutParams(0, -2, 2f))
-        manzilQator.addView(portEdit, LinearLayout.LayoutParams(0, -2, 1f))
-        ildiz.addView(manzilQator)
+        tepa.addView(ulanishChip)
+        ildiz.addView(tepa)
 
-        tekshirBtn = tugma("Tekshirish", KOK) { tekshirish() }
-        jonliBtn = tugma("Jonli datchiklar", Color.parseColor("#374151")) { jonliAlmashtir() }
-        ochirBtn = tugma("Xatolarni o'chirish", QIZIL) { ochirishSorash() }
-        ulashBtn = tugma("Ulashish", Color.parseColor("#374151")) { ulashish() }
-
-        ildiz.addView(qator(tekshirBtn, jonliBtn))
-        ildiz.addView(qator(ochirBtn, ulashBtn))
-
-        holat = TextView(this).apply {
-            text = "1) Skanerni ulang, kalitni ON qiling.\n2) Telefonni skaner Wi-Fi'siga ulang.\n3) \"Tekshirish\"ni bosing."
-            textSize = 14f
-            setTextColor(KULRANG)
-            setPadding(0, dp(12), 0, dp(8))
+        // ---------- Holat o'lchagichi
+        val hero = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dp(16), dp(18), dp(16), dp(18))
+            background = gradient(Color.parseColor("#16234A"), KARTA, dp(24).toFloat())
         }
-        ildiz.addView(holat)
+        hero.addView(matn("MASHINA HOLATI", 11f, XIRA, "sans-serif-medium").apply { letterSpacing = 0.14f })
+        gauge = GaugeView(this).apply { matn = "?"; izoh = "tekshirilmagan"; qiymat = 0f }
+        hero.addView(gauge, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
+        gaugeOsti = matn("Skanerni ulang va tekshiruvni boshlang", 13f, XIRA).apply { gravity = Gravity.CENTER }
+        hero.addView(gaugeOsti)
+        ildiz.addView(hero, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(18) })
+
+        // ---------- Asosiy tugma
+        asosiyBtn = matn("Tekshirishni boshlash", 16f, Color.WHITE, "sans-serif-medium").apply {
+            gravity = Gravity.CENTER
+            background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(KOK, FIRUZA)).apply {
+                cornerRadius = dp(18).toFloat()
+            }
+            elevation = dp(6).toFloat()
+            setOnClickListener { tekshirish() }
+        }
+        ildiz.addView(asosiyBtn, LinearLayout.LayoutParams(-1, dp(58)).apply { topMargin = dp(16) })
+
+        // ---------- Uchta kichik amal
+        val amallar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        jonliBtn = amal("📈", "Jonli") { jonliAlmashtir() }
+        tozalashBtn = amal("🧹", "Tozalash") { ochirishSorash() }
+        ulashBtn = amal("📤", "Ulashish") { ulashish() }
+        jonliMatn = (jonliBtn.getChildAt(1) as TextView)
+        listOf(jonliBtn, tozalashBtn, ulashBtn).forEachIndexed { i, v ->
+            amallar.addView(v, LinearLayout.LayoutParams(0, dp(76), 1f).apply {
+                if (i > 0) marginStart = dp(10)
+            })
+        }
+        ildiz.addView(amallar, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
+
+        // ---------- Holat matni
+        holat = matn("1) Skanerni ulang, kalitni ON qiling\n2) Telefonni skaner Wi-Fi'siga ulang\n3) \"Tekshirishni boshlash\"ni bosing",
+            13f, XIRA).apply { setLineSpacing(dp(3).toFloat(), 1f) }
+        ildiz.addView(holat, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(16) })
 
         natijalar = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         ildiz.addView(natijalar)
 
+        // ---------- Sozlamalar
+        ildiz.addView(bolimSarlavha("Skaner sozlamalari"))
+        val sozlama = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+            background = shakl(KARTA, dp(18).toFloat(), CHEGARA)
+        }
+        hostEdit = maydon(prefs.getString("host", "192.168.0.10") ?: "192.168.0.10", "Manzil",
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
+        portEdit = maydon(prefs.getInt("port", 35000).toString(), "Port", InputType.TYPE_CLASS_NUMBER)
+        sozlama.addView(maydonBlok("Manzil (IP)", hostEdit), LinearLayout.LayoutParams(0, -2, 2f))
+        sozlama.addView(maydonBlok("Port", portEdit), LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(12) })
+        ildiz.addView(sozlama)
+        ildiz.addView(matn("Ko'pchilik Wi-Fi skanerlar: 192.168.0.10 : 35000", 12f, XIRA).apply {
+            setPadding(dp(4), dp(8), 0, 0)
+        })
+
         setContentView(ScrollView(this).apply {
-            setBackgroundColor(FON)
+            background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(FON1, FON2))
+            isFillViewport = true
             addView(ildiz)
         })
     }
@@ -145,7 +187,8 @@ class MainActivity : Activity() {
                 ish()
             } catch (e: Exception) {
                 ui {
-                    holat("❌ Ulanib bo'lmadi: ${e.message ?: e.javaClass.simpleName}\n" +
+                    chip("Ulanmagan", QIZIL)
+                    holat("Ulanib bo'lmadi: ${e.message ?: e.javaClass.simpleName}\n" +
                         "Telefon skaner Wi-Fi'siga ulanganini, manzil va portni tekshiring.", QIZIL)
                 }
             } finally {
@@ -157,55 +200,109 @@ class MainActivity : Activity() {
 
     // ------------------------------------------------------------ to'liq tekshiruv
     private fun tekshirish() = fonda {
-        ui { natijalar.removeAllViews(); holat("Skanerga ulanmoqda...", KULRANG) }
+        ui {
+            natijalar.removeAllViews()
+            holat("Skanerga ulanmoqda...", XIRA)
+            chip("Ulanmoqda", SARIQ)
+            gauge.rang = KOK; gauge.qiymat = 0.08f; gauge.matn = "…"; gauge.izoh = "ulanmoqda"
+        }
         val elm = yangiElm()
         try {
             val versiya = elm.boshlash()
             val akk = elm.kuchlanish()
-            ui { holat("Skaner: $versiya. Mashina bilan aloqa o'rnatilmoqda (10–20 soniya)...", KULRANG) }
+            ui {
+                chip("Skaner ulandi", FIRUZA)
+                holat("Mashina bilan aloqa o'rnatilmoqda (10–20 soniya)...", XIRA)
+                gauge.qiymat = 0.3f; gauge.izoh = "aloqa"
+            }
             val protokol = elm.mashinaBilanAloqa()
             if (protokol == null) {
-                ui { holat("❌ Mashina javob bermadi. Kalit ON holatidami? Eski mashinalarda OBD-II bo'lmasligi mumkin.", QIZIL) }
+                ui {
+                    chip("Mashina javob bermadi", QIZIL)
+                    gauge.qiymat = 0f; gauge.matn = "?"; gauge.izoh = "javob yo'q"
+                    holat("Mashina javob bermadi. Kalit ON holatidami? Eski mashinalarda OBD-II bo'lmasligi mumkin.", QIZIL)
+                }
                 return@fonda
             }
-            ui { holat("O'qilmoqda...", KULRANG) }
+            ui { chip("Mashina ulandi", YASHIL); holat("Ma'lumotlar o'qilmoqda...", XIRA); gauge.qiymat = 0.55f; gauge.izoh = "o'qilmoqda" }
             val vin = elm.vin()
             val holatBayt = elm.pid("0101")
             val chek = holatBayt?.let { (it[0] and 0x80) != 0 }
             val saqlangan = elm.xatolar("03")
             val kutilayotgan = elm.xatolar("07")
             val doimiy = elm.xatolar("0A")
-            val datchiklar = mutableListOf<Pair<String, String>>()
+            val datchiklar = linkedMapOf<String, String>()
+            val sonlar = hashMapOf<String, Double>()
             for (d in DATCHIKLAR) {
                 val a = elm.pid(d.pid) ?: continue
                 val q = try { d.f(a) } catch (_: Exception) { continue }
-                datchiklar.add(d.nom to "$q ${d.birlik}")
+                datchiklar[d.nom] = "$q ${d.birlik}"
+                sonlar[d.pid] = q.toDouble()
             }
 
             val vaqt = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.US).format(Date())
             oxirgiHisobot = hisobot(vaqt, versiya, akk, protokol, vin, chek, saqlangan, kutilayotgan, doimiy, datchiklar)
 
+            // Ball: 100 dan boshlab kamaytiriladi
+            var ball = 100
+            (saqlangan + doimiy).forEach {
+                ball -= when (Kodlar.jiddiylik(it)) { 2 -> 35; 1 -> 15; else -> 6 }
+            }
+            ball -= kutilayotgan.size * 5
+            val kuchV = akk.filter { it.isDigit() || it == '.' }.toDoubleOrNull()
+            if (kuchV != null && kuchV < 12.0) ball -= 10
+            val harorat = sonlar["0105"]
+            if (harorat != null && harorat > 105) ball -= 20
+            ball = ball.coerceIn(0, 100)
+            val (rang, soz) = when {
+                ball >= 85 -> YASHIL to "a'lo holat"
+                ball >= 60 -> SARIQ to "e'tibor bering"
+                else -> QIZIL to "jiddiy"
+            }
+
             ui {
+                gauge.rang = rang; gauge.qiymat = ball / 100f; gauge.matn = ball.toString(); gauge.izoh = soz
+                gaugeOsti.text = "Oxirgi tekshiruv: $vaqt"
                 val jami = saqlangan.size + doimiy.size
                 when {
-                    jami == 0 && kutilayotgan.isEmpty() -> holat("✅ Xato kodlari topilmadi", YASHIL)
-                    jami == 0 -> holat("🟡 Kutilayotgan xatolar bor — kuzatib boring", SARIQ)
-                    else -> holat("🔴 $jami ta xato kodi topildi", QIZIL)
+                    jami == 0 && kutilayotgan.isEmpty() -> holat("Xato kodlari topilmadi", YASHIL)
+                    jami == 0 -> holat("Kutilayotgan xatolar bor: kuzatib boring", SARIQ)
+                    else -> holat("$jami ta xato kodi topildi", QIZIL)
                 }
-                karta("Umumiy") {
-                    satr(it, "Vaqt", vaqt)
-                    satr(it, "VIN", vin ?: "o'qilmadi")
-                    satr(it, "Protokol", protokol)
-                    satr(it, "Akkumulyator", akk)
-                    satr(it, "'Chek' chirog'i", when (chek) { true -> "YONGAN"; false -> "o'chiq"; null -> "noma'lum" })
+
+                // Asosiy ko'rsatkichlar
+                natijalar.addView(bolimSarlavha("Asosiy ko'rsatkichlar"))
+                val asosiy = listOf(
+                    Triple("🔋", "Akkumulyator", akk.ifBlank { "—" }),
+                    Triple("🌡️", "Sovutish suyuqligi", datchiklar["Sovutish suyuqligi"] ?: "—"),
+                    Triple("⚙️", "Aylanish", datchiklar["Motor aylanishi"] ?: "—"),
+                    Triple("🚨", "'Chek' chirog'i", when (chek) { true -> "Yongan"; false -> "O'chiq"; null -> "—" }),
+                )
+                natijalar.addView(panjara(asosiy.map { plitka(it.first, it.second, it.third).first }))
+
+                // Xatolar
+                natijalar.addView(bolimSarlavha("Xato kodlari"))
+                if (saqlangan.isEmpty() && kutilayotgan.isEmpty() && doimiy.isEmpty()) {
+                    natijalar.addView(boshKarta("✅", "Xato kodlari yo'q", "Motor bloki hech qanday xato saqlamagan"))
+                } else {
+                    saqlangan.forEach { natijalar.addView(xatoKarta(it, "Saqlangan")) }
+                    doimiy.forEach { natijalar.addView(xatoKarta(it, "Doimiy")) }
+                    kutilayotgan.forEach { natijalar.addView(xatoKarta(it, "Kutilayotgan")) }
                 }
-                xatoKarta("Saqlangan xatolar", saqlangan)
-                xatoKarta("Kutilayotgan xatolar", kutilayotgan)
-                if (doimiy.isNotEmpty()) xatoKarta("Doimiy xatolar (o'chmaydi)", doimiy)
-                karta("Datchiklar") { k ->
-                    if (datchiklar.isEmpty()) satr(k, "—", "ma'lumot kelmadi")
-                    datchiklar.forEach { satr(k, it.first, it.second) }
+
+                // Barcha datchiklar
+                if (datchiklar.isNotEmpty()) {
+                    natijalar.addView(bolimSarlavha("Barcha datchiklar"))
+                    natijalar.addView(panjara(datchiklar.map { (nom, q) -> plitka("", nom, q).first }))
                 }
+
+                // Mashina
+                natijalar.addView(bolimSarlavha("Mashina"))
+                natijalar.addView(royxatKarta(listOf(
+                    "VIN" to (vin ?: "o'qilmadi"),
+                    "Protokol" to protokol,
+                    "Skaner" to versiya.ifBlank { "—" },
+                )))
             }
         } finally {
             elm.yop()
@@ -216,68 +313,89 @@ class MainActivity : Activity() {
     private fun jonliAlmashtir() {
         if (jonli) { jonli = false; return }
         fonda {
-            ui { natijalar.removeAllViews(); holat("Skanerga ulanmoqda...", KULRANG) }
+            ui { natijalar.removeAllViews(); holat("Skanerga ulanmoqda...", XIRA); chip("Ulanmoqda", SARIQ) }
             val elm = yangiElm()
             try {
                 elm.boshlash()
                 if (elm.mashinaBilanAloqa() == null) {
-                    ui { holat("❌ Mashina javob bermadi.", QIZIL) }
+                    ui { chip("Mashina javob bermadi", QIZIL); holat("Mashina javob bermadi.", QIZIL) }
                     return@fonda
                 }
                 jonli = true
                 val tanlangan = DATCHIKLAR.filter {
-                    it.pid in setOf("010C", "0105", "010D", "0106", "0107", "0111", "0142")
+                    it.pid in setOf("0105", "010D", "0111", "0104", "0106", "0107", "0142", "010F")
                 }
                 val qiymatlar = arrayOfNulls<TextView>(tanlangan.size)
                 ui {
-                    jonliBtn.text = "To'xtatish"
+                    chip("Jonli", YASHIL)
+                    jonliMatn.text = "To'xtatish"
                     jonliBtn.isEnabled = true
-                    holat("🟢 Jonli rejim — har soniyada yangilanadi", YASHIL)
-                    karta("Jonli datchiklar") { k ->
-                        tanlangan.forEachIndexed { i, d -> qiymatlar[i] = satr(k, d.nom, "...") }
+                    jonliBtn.alpha = 1f
+                    holat("Jonli rejim: qiymatlar uzluksiz yangilanadi", YASHIL)
+                    gauge.rang = FIRUZA; gauge.izoh = "ayl/min"; gauge.matn = "0"; gauge.qiymat = 0f
+                    natijalar.addView(bolimSarlavha("Jonli datchiklar"))
+                    val plitkalar = tanlangan.mapIndexed { i, d ->
+                        val (v, q) = plitka("", d.nom, "…")
+                        qiymatlar[i] = q
+                        v
                     }
+                    natijalar.addView(panjara(plitkalar))
                 }
                 while (jonli) {
+                    val rpm = elm.pid("010C")?.let { (it[0] * 256 + it[1]) / 4 }
+                    ui {
+                        if (rpm != null) {
+                            gauge.matn = rpm.toString()
+                            gauge.qiymat = rpm / 7000f
+                            gauge.rang = if (rpm > 5000) QIZIL else FIRUZA
+                        }
+                    }
                     tanlangan.forEachIndexed { i, d ->
+                        if (!jonli) return@forEachIndexed
                         val a = elm.pid(d.pid)
                         val q = if (a == null) "—" else try { "${d.f(a)} ${d.birlik}" } catch (_: Exception) { "—" }
                         ui { qiymatlar[i]?.text = q }
                     }
-                    Thread.sleep(300)
                 }
             } finally {
                 jonli = false
                 elm.yop()
-                ui { jonliBtn.text = "Jonli datchiklar"; holat("Jonli rejim to'xtatildi", KULRANG) }
+                ui {
+                    jonliMatn.text = "Jonli"
+                    chip("Uzildi", XIRA)
+                    gauge.qiymat = 0f; gauge.matn = "?"; gauge.izoh = "to'xtatildi"; gauge.rang = KOK
+                    holat("Jonli rejim to'xtatildi", XIRA)
+                }
             }
         }
     }
 
     // ------------------------------------------------------------ o'chirish
     private fun ochirishSorash() {
-        AlertDialog.Builder(this)
+        AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
             .setTitle("Xatolarni o'chirish")
             .setMessage("Saqlangan xato kodlari va 'chek' chirog'i o'chiriladi.\n\n" +
-                "Diqqat: sabab tuzatilmagan bo'lsa, chiroq yana yonadi. Ustaga ko'rsatishdan oldin " +
-                "o'chirmang — u xatolarni ko'rishi kerak.\n\nMotor o'chiq, kalit ON holatida bo'lsin.")
+                "Sabab tuzatilmagan bo'lsa, chiroq yana yonadi. Ustaga ko'rsatishdan oldin o'chirmang: " +
+                "u xatolarni ko'rishi kerak.\n\nMotor o'chiq, kalit ON holatida bo'lsin.")
             .setPositiveButton("O'chirish") { _, _ -> ochirish() }
             .setNegativeButton("Bekor qilish", null)
             .show()
     }
 
     private fun ochirish() = fonda {
-        ui { holat("Xatolar o'chirilmoqda...", KULRANG) }
+        ui { holat("Xatolar o'chirilmoqda...", XIRA); chip("Ulanmoqda", SARIQ) }
         val elm = yangiElm()
         try {
             elm.boshlash()
             if (elm.mashinaBilanAloqa() == null) {
-                ui { holat("❌ Mashina javob bermadi.", QIZIL) }
+                ui { chip("Mashina javob bermadi", QIZIL); holat("Mashina javob bermadi.", QIZIL) }
                 return@fonda
             }
             val ok = elm.xatolarniOchir()
             ui {
-                if (ok) holat("✅ Xatolar o'chirildi. Qayta tekshirib ko'ring.", YASHIL)
-                else holat("❌ Mashina o'chirish buyrug'ini qabul qilmadi. Motorni o'chirib, kalitni ON qilib qayta urinib ko'ring.", QIZIL)
+                chip("Mashina ulandi", YASHIL)
+                if (ok) holat("Xatolar o'chirildi. Qayta tekshirib ko'ring.", YASHIL)
+                else holat("Mashina o'chirish buyrug'ini qabul qilmadi. Motorni o'chirib, kalitni ON qilib qayta urinib ko'ring.", QIZIL)
             }
         } finally {
             elm.yop()
@@ -287,7 +405,7 @@ class MainActivity : Activity() {
     // ------------------------------------------------------------ ulashish
     private fun ulashish() {
         if (oxirgiHisobot.isEmpty()) {
-            holat("Avval \"Tekshirish\"ni bosing.", KULRANG)
+            holat("Avval tekshiruv o'tkazing.", SARIQ)
             return
         }
         startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
@@ -299,7 +417,7 @@ class MainActivity : Activity() {
     private fun hisobot(
         vaqt: String, versiya: String, akk: String, protokol: String, vin: String?, chek: Boolean?,
         saqlangan: List<String>, kutilayotgan: List<String>, doimiy: List<String>,
-        datchiklar: List<Pair<String, String>>,
+        datchiklar: Map<String, String>,
     ): String = buildString {
         appendLine("AVTO SKANER HISOBOTI — $vaqt")
         appendLine("VIN: ${vin ?: "o'qilmadi"}")
@@ -316,7 +434,7 @@ class MainActivity : Activity() {
         if (doimiy.isNotEmpty()) bolim("Doimiy xatolar", doimiy)
         appendLine()
         appendLine("Datchiklar:")
-        datchiklar.forEach { appendLine("  ${it.first}: ${it.second}") }
+        datchiklar.forEach { (k, v) -> appendLine("  $k: $v") }
     }
 
     // ------------------------------------------------------------ UI yordamchilar
@@ -324,87 +442,171 @@ class MainActivity : Activity() {
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
-    private fun holat(matn: String, rang: Int) {
-        holat.text = matn
+    private fun holat(m: String, rang: Int) {
+        holat.text = m
         holat.setTextColor(rang)
     }
 
-    private fun tugmalar(yoq: Boolean) {
-        tekshirBtn.isEnabled = yoq
-        ochirBtn.isEnabled = yoq
-        ulashBtn.isEnabled = yoq
-        jonliBtn.isEnabled = yoq || jonli
+    private fun chip(m: String, rang: Int) {
+        ulanishChip.text = "●  $m"
+        ulanishChip.setTextColor(rang)
+        ulanishChip.background = shakl(Color.argb(40, Color.red(rang), Color.green(rang), Color.blue(rang)),
+            dp(20).toFloat(), Color.argb(110, Color.red(rang), Color.green(rang), Color.blue(rang)))
     }
 
-    private fun tugma(matn: String, rang: Int, bosish: () -> Unit) = Button(this).apply {
-        text = matn
-        isAllCaps = false
-        textSize = 15f
-        setTextColor(Color.WHITE)
-        background = GradientDrawable().apply { setColor(rang); cornerRadius = dp(10).toFloat() }
+    private fun tugmalar(yoq: Boolean) {
+        for (v in listOf<View>(asosiyBtn, tozalashBtn, ulashBtn)) {
+            v.isEnabled = yoq
+            v.alpha = if (yoq) 1f else 0.45f
+        }
+        asosiyBtn.text = if (yoq) "Tekshirishni boshlash" else "Bajarilmoqda..."
+        jonliBtn.isEnabled = yoq || jonli
+        jonliBtn.alpha = if (yoq || jonli) 1f else 0.45f
+    }
+
+    private fun matn(m: String, size: Float, rang: Int, shrift: String = "sans-serif") = TextView(this).apply {
+        text = m
+        textSize = size
+        setTextColor(rang)
+        typeface = Typeface.create(shrift, Typeface.NORMAL)
+    }
+
+    private fun shakl(rang: Int, radius: Float, chegara: Int? = null) = GradientDrawable().apply {
+        setColor(rang)
+        cornerRadius = radius
+        if (chegara != null) setStroke(dp(1), chegara)
+    }
+
+    private fun gradient(a: Int, b: Int, radius: Float) =
+        GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(a, b)).apply {
+            cornerRadius = radius
+            setStroke(dp(1), CHEGARA)
+        }
+
+    private fun amal(belgi: String, nom: String, bosish: () -> Unit) = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        gravity = Gravity.CENTER
+        background = shakl(KARTA, dp(18).toFloat(), CHEGARA)
+        isClickable = true
+        addView(matn(belgi, 20f, OQ).apply { gravity = Gravity.CENTER })
+        addView(matn(nom, 13f, OQ, "sans-serif-medium").apply {
+            gravity = Gravity.CENTER
+            setPadding(0, dp(4), 0, 0)
+        })
         setOnClickListener { bosish() }
     }
 
-    private fun qator(a: View, b: View) = LinearLayout(this).apply {
-        orientation = LinearLayout.HORIZONTAL
-        setPadding(0, dp(8), 0, 0)
-        addView(a, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginEnd = dp(6) })
-        addView(b, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginStart = dp(6) })
+    private fun bolimSarlavha(m: String) = matn(m.uppercase(), 12f, XIRA, "sans-serif-medium").apply {
+        letterSpacing = 0.14f
+        layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(24); bottomMargin = dp(10) }
     }
 
-    private fun karta(sarlavha: String, ichi: (LinearLayout) -> Unit) {
+    /** Ko'rsatkich plitkasi: (plitka, qiymat matni). */
+    private fun plitka(belgi: String, nom: String, qiymat: String): Pair<View, TextView> {
         val k = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(14), dp(12), dp(14), dp(12))
-            background = GradientDrawable().apply { setColor(Color.WHITE); cornerRadius = dp(12).toFloat() }
+            setPadding(dp(14), dp(14), dp(14), dp(14))
+            background = shakl(KARTA, dp(18).toFloat(), CHEGARA)
         }
-        k.addView(TextView(this).apply {
-            text = sarlavha
-            textSize = 17f
-            setTypeface(typeface, Typeface.BOLD)
-            setTextColor(Color.parseColor("#111827"))
-            setPadding(0, 0, 0, dp(6))
-        })
-        ichi(k)
-        natijalar.addView(k, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
+        if (belgi.isNotEmpty()) k.addView(matn(belgi, 18f, OQ))
+        k.addView(matn(nom, 12f, XIRA).apply { setPadding(0, if (belgi.isNotEmpty()) dp(6) else 0, 0, dp(4)) })
+        val v = matn(qiymat, 19f, OQ, "sans-serif-medium")
+        k.addView(v)
+        return k to v
     }
 
-    private fun satr(k: LinearLayout, nom: String, qiymat: String): TextView {
-        val q = LinearLayout(this).apply {
+    private fun panjara(plitkalar: List<View>): LinearLayout {
+        val p = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        plitkalar.chunked(2).forEachIndexed { i, juft ->
+            val q = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            juft.forEachIndexed { j, v ->
+                q.addView(v, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f).apply {
+                    if (j == 1) marginStart = dp(10)
+                })
+            }
+            if (juft.size == 1) q.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f).apply { marginStart = dp(10) })
+            p.addView(q, LinearLayout.LayoutParams(-1, -2).apply { if (i > 0) topMargin = dp(10) })
+        }
+        return p
+    }
+
+    private fun xatoKarta(kod: String, turi: String): View {
+        val rang = when (Kodlar.jiddiylik(kod)) { 2 -> QIZIL; 1 -> SARIQ; else -> YASHIL }
+        val darajasi = when (Kodlar.jiddiylik(kod)) { 2 -> "Jiddiy"; 1 -> "Tekshirtiring"; else -> "Yengil" }
+        val tashqi = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            setPadding(0, dp(4), 0, dp(4))
+            background = shakl(KARTA, dp(18).toFloat(), CHEGARA)
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) }
         }
-        q.addView(TextView(this).apply {
-            text = nom; textSize = 14f; setTextColor(KULRANG)
-        }, LinearLayout.LayoutParams(0, -2, 1.3f))
-        val v = TextView(this).apply {
-            text = qiymat; textSize = 15f; gravity = Gravity.END
-            setTypeface(typeface, Typeface.BOLD); setTextColor(Color.parseColor("#111827"))
+        tashqi.addView(View(this).apply { background = shakl(rang, dp(3).toFloat()) },
+            LinearLayout.LayoutParams(dp(5), ViewGroup.LayoutParams.MATCH_PARENT).apply {
+                setMargins(dp(10), dp(14), 0, dp(14))
+            })
+        val ichi = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(14), dp(14), dp(14), dp(14))
         }
-        q.addView(v, LinearLayout.LayoutParams(0, -2, 1f))
-        k.addView(q)
-        return v
+        val qator = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        qator.addView(matn(kod, 22f, OQ, "sans-serif-medium"), LinearLayout.LayoutParams(0, -2, 1f))
+        qator.addView(matn(darajasi, 11f, rang, "sans-serif-medium").apply {
+            setPadding(dp(10), dp(4), dp(10), dp(4))
+            background = shakl(Color.argb(40, Color.red(rang), Color.green(rang), Color.blue(rang)), dp(12).toFloat())
+        })
+        ichi.addView(qator)
+        ichi.addView(matn(Kodlar.izoh(kod), 14f, Color.parseColor("#C9D3EA")).apply {
+            setPadding(0, dp(6), 0, dp(4)); setLineSpacing(dp(2).toFloat(), 1f)
+        })
+        ichi.addView(matn("$turi xato", 11f, XIRA))
+        tashqi.addView(ichi, LinearLayout.LayoutParams(0, -2, 1f))
+        return tashqi
     }
 
-    private fun xatoKarta(sarlavha: String, kodlar: List<String>) = karta(sarlavha) { k ->
-        if (kodlar.isEmpty()) {
-            k.addView(TextView(this).apply { text = "Yo'q ✅"; textSize = 15f; setTextColor(YASHIL) })
-            return@karta
-        }
-        for (kod in kodlar) {
-            val rang = when (Kodlar.jiddiylik(kod)) { 2 -> QIZIL; 1 -> SARIQ; else -> YASHIL }
-            k.addView(TextView(this).apply {
-                text = kod
-                textSize = 17f
-                setTypeface(typeface, Typeface.BOLD)
-                setTextColor(rang)
-                setPadding(0, dp(6), 0, 0)
+    private fun boshKarta(belgi: String, sarlavha: String, izoh: String) = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(dp(16), dp(16), dp(16), dp(16))
+        background = shakl(Color.argb(30, 34, 197, 94), dp(18).toFloat(), Color.argb(90, 34, 197, 94))
+        addView(matn(belgi, 22f, OQ))
+        addView(LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(14), 0, 0, 0)
+            addView(matn(sarlavha, 16f, OQ, "sans-serif-medium"))
+            addView(matn(izoh, 13f, XIRA))
+        })
+    }
+
+    private fun royxatKarta(qatorlar: List<Pair<String, String>>) = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(16), dp(8), dp(16), dp(8))
+        background = shakl(KARTA, dp(18).toFloat(), CHEGARA)
+        qatorlar.forEachIndexed { i, (k, v) ->
+            if (i > 0) addView(View(this@MainActivity).apply { setBackgroundColor(CHEGARA) },
+                LinearLayout.LayoutParams(-1, dp(1)))
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, dp(12), 0, dp(12))
+                addView(matn(k, 13f, XIRA), LinearLayout.LayoutParams(0, -2, 1f))
+                addView(matn(v, 13f, OQ, "sans-serif-medium").apply { gravity = Gravity.END },
+                    LinearLayout.LayoutParams(0, -2, 2f))
             })
-            k.addView(TextView(this).apply {
-                text = Kodlar.izoh(kod)
-                textSize = 14f
-                setTextColor(Color.parseColor("#374151"))
-            })
         }
+    }
+
+    private fun maydon(qiymat: String, ishora: String, tur: Int) = EditText(this).apply {
+        setText(qiymat)
+        hint = ishora
+        inputType = tur
+        textSize = 15f
+        setTextColor(OQ)
+        setHintTextColor(XIRA)
+        background = null
+        setPadding(0, dp(2), 0, dp(2))
+        setSingleLine(true)
+    }
+
+    private fun maydonBlok(nom: String, e: EditText) = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        addView(matn(nom, 11f, XIRA, "sans-serif-medium"))
+        addView(e)
     }
 }
