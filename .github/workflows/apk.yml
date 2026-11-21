@@ -37,7 +37,7 @@ jobs:
       - name: Yuklab olish sahifasiga qo'yish (Releases)
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.2-build${{ github.run_number }}
-          name: Avto Skaner v0.2 (yig'ish ${{ github.run_number }})
+          tag_name: v0.3-build${{ github.run_number }}
+          name: Avto Skaner v0.3 (yig'ish ${{ github.run_number }})
           body: Telefonga yuklab olib o'rnating. "Noma'lum manbalardan o'rnatish"ga ruxsat bering.
           files: AvtoSkaner.apk
