@@ -5,6 +5,7 @@ import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.graphics.PorterDuff
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
@@ -18,22 +19,35 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 
-/** Ranglar palitrasi. */
+/** Ranglar palitrasi: och va to'q mavzu. */
 object R2 {
-    val FON1 = Color.parseColor("#060A14")
-    val FON2 = Color.parseColor("#0E1730")
-    val KARTA = Color.parseColor("#121C36")
-    val KARTA2 = Color.parseColor("#18244A")
-    val CHEGARA = Color.parseColor("#22305A")
-    val OQ = Color.parseColor("#F4F7FF")
-    val MATN2 = Color.parseColor("#C9D3EA")
-    val XIRA = Color.parseColor("#8391B3")
-    val KOK = Color.parseColor("#3D8BFF")
-    val FIRUZA = Color.parseColor("#22D3EE")
-    val BINAFSHA = Color.parseColor("#8B5CF6")
-    val YASHIL = Color.parseColor("#22C55E")
-    val SARIQ = Color.parseColor("#F59E0B")
-    val QIZIL = Color.parseColor("#EF4444")
+    var qorongi = false
+        private set
+
+    var FON1 = 0; var FON2 = 0; var KARTA = 0; var KARTA2 = 0; var CHEGARA = 0
+    var OQ = 0; var MATN2 = 0; var XIRA = 0
+    var KOK = 0; var FIRUZA = 0; var BINAFSHA = 0; var YASHIL = 0; var SARIQ = 0; var QIZIL = 0
+    var URGU = 0; var TREK = 0; var TREK_CHIZIQ = 0; var MAYDON = 0
+
+    init { mavzu(false) }
+
+    fun mavzu(tom: Boolean) {
+        qorongi = tom
+        fun c(s: String) = Color.parseColor(s)
+        if (tom) {
+            FON1 = c("#060A14"); FON2 = c("#0E1730"); KARTA = c("#121C36"); KARTA2 = c("#18244A"); CHEGARA = c("#22305A")
+            OQ = c("#F4F7FF"); MATN2 = c("#C9D3EA"); XIRA = c("#8391B3")
+            KOK = c("#3D8BFF"); FIRUZA = c("#22D3EE"); BINAFSHA = c("#8B5CF6")
+            YASHIL = c("#22C55E"); SARIQ = c("#F59E0B"); QIZIL = c("#EF4444")
+            URGU = c("#1B2B5C"); TREK = c("#1B2747"); TREK_CHIZIQ = c("#2A3758"); MAYDON = c("#0A1022")
+        } else {
+            FON1 = c("#F3F5F8"); FON2 = c("#EEF1F5"); KARTA = c("#FFFFFF"); KARTA2 = c("#F5F7FA"); CHEGARA = c("#E5E8EE")
+            OQ = c("#101828"); MATN2 = c("#344054"); XIRA = c("#8A94A6")
+            KOK = c("#2563EB"); FIRUZA = c("#3B82F6"); BINAFSHA = c("#7C3AED")
+            YASHIL = c("#16A34A"); SARIQ = c("#D97706"); QIZIL = c("#DC2626")
+            URGU = c("#EAF1FF"); TREK = c("#E9EDF3"); TREK_CHIZIQ = c("#D3D9E3"); MAYDON = c("#F3F5F8")
+        }
+    }
 
     fun shaffof(rang: Int, alfa: Int) = Color.argb(alfa, Color.red(rang), Color.green(rang), Color.blue(rang))
 
@@ -64,7 +78,7 @@ object Shrift {
     fun raqam(ctx: Context) = ol(ctx, "orbitron_bold")
 }
 
-/** 3D ikonkalar: assets ichidagi icons papkasidagi PNG fayllar. */
+/** Chiziqli ikonkalar: assets ichidagi icons papkasi, oq PNG, rangi kodda beriladi. */
 object Ikonka {
     private val kesh = HashMap<String, Bitmap?>()
 
@@ -109,20 +123,24 @@ class Kit(private val ctx: Context) {
 
     /** Bosilganda to'lqin effekti. */
     fun bosiladigan(fon: Drawable, radius: Int): Drawable =
-        RippleDrawable(ColorStateList.valueOf(R2.shaffof(R2.FIRUZA, 60)), fon, shakl(Color.WHITE, radius))
+        RippleDrawable(ColorStateList.valueOf(R2.shaffof(R2.KOK, 50)), fon, shakl(Color.WHITE, radius))
 
-    fun ikonka(nom: String, olcham: Int): ImageView = ImageView(ctx).apply {
+    /** Chiziqli ikonka, berilgan rangga bo'yalgan. */
+    fun ikonka(nom: String, olcham: Int, rang: Int = R2.MATN2): ImageView = ImageView(ctx).apply {
         setImageBitmap(Ikonka.ol(ctx, nom))
+        setColorFilter(rang, PorterDuff.Mode.SRC_IN)
         scaleType = ImageView.ScaleType.FIT_CENTER
         layoutParams = LinearLayout.LayoutParams(dp(olcham), dp(olcham))
     }
 
-    /** Rangli doira ichida 3D ikonka. */
+    /** Rangli fon ustida ikonka (yumaloq kvadrat). */
     fun ikonkaDoira(nom: String, olcham: Int, rang: Int): View = LinearLayout(ctx).apply {
         gravity = Gravity.CENTER
-        background = shakl(R2.shaffof(rang, 38), olcham / 2, R2.shaffof(rang, 80))
-        addView(ImageView(ctx).apply { setImageBitmap(Ikonka.ol(ctx, nom)) },
-            LinearLayout.LayoutParams(dp(olcham * 62 / 100), dp(olcham * 62 / 100)))
+        background = shakl(R2.shaffof(rang, if (R2.qorongi) 40 else 26), olcham * 30 / 100)
+        addView(ImageView(ctx).apply {
+            setImageBitmap(Ikonka.ol(ctx, nom))
+            setColorFilter(rang, PorterDuff.Mode.SRC_IN)
+        }, LinearLayout.LayoutParams(dp(olcham * 52 / 100), dp(olcham * 52 / 100)))
         layoutParams = LinearLayout.LayoutParams(dp(olcham), dp(olcham))
     }
 
@@ -146,20 +164,20 @@ class Kit(private val ctx: Context) {
 
     fun bolim(m: String, oxiriga: View? = null): View {
         val q = qator()
-        q.addView(matn(m.uppercase(), 11.5f, R2.XIRA, Vazn.QALIN).apply { letterSpacing = 0.16f }, lp(0, -2, 1f))
+        q.addView(matn(m, 18f, R2.OQ, Vazn.QALIN), lp(0, -2, 1f))
         if (oxiriga != null) q.addView(oxiriga)
         q.layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(26); bottomMargin = dp(12) }
         return q
     }
 
-    /** Asosiy gradient tugma. */
+    /** Asosiy tugma. */
     fun katta(m: String, ikonkaNomi: String?, bosish: () -> Unit): LinearLayout = LinearLayout(ctx).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER
         val fon = gradient(intArrayOf(R2.KOK, R2.FIRUZA), 20, GradientDrawable.Orientation.LEFT_RIGHT)
         background = bosiladigan(fon, 20)
-        elevation = dpf(8)
-        if (ikonkaNomi != null) addView(ikonka(ikonkaNomi, 26).apply {
+        elevation = dpf(if (R2.qorongi) 8 else 3)
+        if (ikonkaNomi != null) addView(ikonka(ikonkaNomi, 22, Color.WHITE).apply {
             (layoutParams as LinearLayout.LayoutParams).marginEnd = dp(10)
         })
         addView(matn(m, 16.5f, Color.WHITE, Vazn.QALIN))
@@ -167,13 +185,13 @@ class Kit(private val ctx: Context) {
         setOnClickListener { bosish() }
     }
 
-    /** Ikkinchi darajali tugma (kartochka ko'rinishida). */
+    /** Ikkinchi darajali tugma. */
     fun tugma(m: String, ikonkaNomi: String?, rang: Int = R2.OQ, bosish: () -> Unit): LinearLayout = LinearLayout(ctx).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER
         setPadding(dp(14), 0, dp(14), 0)
-        background = bosiladigan(shakl(R2.KARTA2, 16, R2.CHEGARA), 16)
-        if (ikonkaNomi != null) addView(ikonka(ikonkaNomi, 20).apply {
+        background = bosiladigan(shakl(R2.KARTA, 16, R2.CHEGARA), 16)
+        if (ikonkaNomi != null) addView(ikonka(ikonkaNomi, 19, if (rang == R2.OQ) R2.KOK else rang).apply {
             (layoutParams as LinearLayout.LayoutParams).marginEnd = dp(8)
         })
         addView(matn(m, 14f, rang, Vazn.ORTA))
@@ -181,17 +199,13 @@ class Kit(private val ctx: Context) {
         setOnClickListener { bosish() }
     }
 
-    /** Tez amal plitkasi: katta ikonka + nom. */
-    fun amal(ikonkaNomi: String, nom: String, bosish: () -> Unit): LinearLayout = LinearLayout(ctx).apply {
+    /** Tez amal plitkasi: rangli fonda ikonka + nom. */
+    fun amal(ikonkaNomi: String, nom: String, rang: Int = R2.KOK, bosish: () -> Unit): LinearLayout = LinearLayout(ctx).apply {
         orientation = LinearLayout.VERTICAL
-        gravity = Gravity.CENTER
-        setPadding(dp(6), dp(14), dp(6), dp(12))
-        background = bosiladigan(gradient(intArrayOf(R2.KARTA2, R2.KARTA), 20, chegara = R2.CHEGARA), 20)
-        addView(ikonka(ikonkaNomi, 36))
-        addView(matn(nom, 12.5f, R2.OQ, Vazn.ORTA).apply {
-            gravity = Gravity.CENTER
-            setPadding(0, dp(8), 0, 0)
-        })
+        setPadding(dp(16), dp(16), dp(12), dp(16))
+        background = bosiladigan(shakl(R2.KARTA, 22, R2.CHEGARA), 22)
+        addView(ikonkaDoira(ikonkaNomi, 44, rang))
+        addView(matn(nom, 14f, R2.OQ, Vazn.QALIN).apply { setPadding(0, dp(12), 0, 0) })
         isClickable = true
         setOnClickListener { bosish() }
     }
@@ -200,7 +214,7 @@ class Kit(private val ctx: Context) {
     fun plitka(ikonkaNomi: String?, nom: String, qiymat: String, rang: Int = R2.OQ): Pair<LinearLayout, TextView> {
         val k = karta(14, R2.KARTA, 20)
         val tepa = qator()
-        if (ikonkaNomi != null) tepa.addView(ikonka(ikonkaNomi, 22).apply {
+        if (ikonkaNomi != null) tepa.addView(ikonka(ikonkaNomi, 18, R2.XIRA).apply {
             (layoutParams as LinearLayout.LayoutParams).marginEnd = dp(8)
         })
         tepa.addView(matn(nom, 12f, R2.XIRA, Vazn.ORTA).apply { maxLines = 2 }, lp(0, -2, 1f))
@@ -227,7 +241,7 @@ class Kit(private val ctx: Context) {
 
     fun chip(m: String, rang: Int, size: Float = 11.5f): TextView = matn(m, size, rang, Vazn.QALIN).apply {
         setPadding(dp(10), dp(5), dp(10), dp(5))
-        background = shakl(R2.shaffof(rang, 36), 12, R2.shaffof(rang, 90))
+        background = shakl(R2.shaffof(rang, if (R2.qorongi) 36 else 22), 12, R2.shaffof(rang, if (R2.qorongi) 90 else 60))
     }
 
     fun ajratgich(): View = View(ctx).apply {
@@ -245,12 +259,12 @@ class Kit(private val ctx: Context) {
     fun maydon(qiymat: String, ishora: String, raqam: Boolean = false): EditText = EditText(ctx).apply {
         setText(qiymat)
         hint = ishora
-        inputType = if (raqam) InputType.TYPE_CLASS_NUMBER else InputType.TYPE_CLASS_TEXT
+        inputType = if (raqam) InputType.TYPE_CLASS_NUMBER else InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
         textSize = 15.5f
         typeface = Shrift.orta(ctx)
         setTextColor(R2.OQ)
         setHintTextColor(R2.XIRA)
-        background = shakl(R2.FON1, 14, R2.CHEGARA)
+        background = shakl(R2.MAYDON, 14, R2.CHEGARA)
         setPadding(dp(14), dp(12), dp(14), dp(12))
         setSingleLine(true)
     }
@@ -264,24 +278,23 @@ class Kit(private val ctx: Context) {
 
     /** Tanlanadigan qator (bosilganda ro'yxat ochiladi). */
     fun tanlash(qiymat: String, bosish: () -> Unit): TextView = matn(qiymat, 15.5f, R2.OQ, Vazn.ORTA).apply {
-        background = bosiladigan(shakl(R2.FON1, 14, R2.CHEGARA), 14)
+        background = bosiladigan(shakl(R2.MAYDON, 14, R2.CHEGARA), 14)
         setPadding(dp(14), dp(13), dp(14), dp(13))
-        setCompoundDrawablePadding(dp(8))
         isClickable = true
         setOnClickListener { bosish() }
     }
 
-    /** Ikki variantli almashtirgich. */
+    /** Variantli almashtirgich. */
     fun segment(variantlar: List<String>, tanlangan: Int, tanlov: (Int) -> Unit): LinearLayout {
         val q = qator().apply {
-            background = shakl(R2.FON1, 14, R2.CHEGARA)
+            background = shakl(R2.MAYDON, 14, R2.CHEGARA)
             setPadding(dp(4), dp(4), dp(4), dp(4))
         }
         val tugmalar = mutableListOf<TextView>()
         fun belgila(i: Int) {
             tugmalar.forEachIndexed { j, t ->
                 if (j == i) {
-                    t.background = gradient(intArrayOf(R2.KOK, R2.FIRUZA), 11, GradientDrawable.Orientation.LEFT_RIGHT)
+                    t.background = shakl(R2.KOK, 11)
                     t.setTextColor(Color.WHITE)
                 } else {
                     t.background = null

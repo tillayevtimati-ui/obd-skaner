@@ -5,7 +5,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -119,34 +118,10 @@ object Tarix {
     }
 }
 
-/** Mashina profili va sozlamalar. */
+/** Sozlamalar va garajdagi mashinalar. */
 class Profil(ctx: Context) {
     private val p = ctx.getSharedPreferences("profil", Context.MODE_PRIVATE)
 
-    var model: String
-        get() = p.getString("model", "") ?: ""
-        set(v) = p.edit().putString("model", v).apply()
-    var yil: String
-        get() = p.getString("yil", "") ?: ""
-        set(v) = p.edit().putString("yil", v).apply()
-    var probeg: Int
-        get() = p.getInt("probeg", 0)
-        set(v) = p.edit().putInt("probeg", v).apply()
-    var yoqilgi: String
-        get() = p.getString("yoqilgi", "Benzin") ?: "Benzin"
-        set(v) = p.edit().putString("yoqilgi", v).apply()
-    var moyKm: Int
-        get() = p.getInt("moyKm", 0)
-        set(v) = p.edit().putInt("moyKm", v).apply()
-    var moyInterval: Int
-        get() = p.getInt("moyInterval", 8000)
-        set(v) = p.edit().putInt("moyInterval", v).apply()
-    var sugurta: String
-        get() = p.getString("sugurta", "") ?: ""
-        set(v) = p.edit().putString("sugurta", v).apply()
-    var texosmotr: String
-        get() = p.getString("texosmotr", "") ?: ""
-        set(v) = p.edit().putString("texosmotr", v).apply()
     var ulanishTuri: String
         get() = p.getString("ulanishTuri", "wifi") ?: "wifi"
         set(v) = p.edit().putString("ulanishTuri", v).apply()
@@ -165,32 +140,75 @@ class Profil(ctx: Context) {
     var eng100: Float
         get() = p.getFloat("eng100", 0f)
         set(v) = p.edit().putFloat("eng100", v).apply()
+    var qorongi: Boolean
+        get() = p.getBoolean("qorongi", false)
+        set(v) = p.edit().putBoolean("qorongi", v).apply()
+    var bildirishnomaSorandi: Boolean
+        get() = p.getBoolean("bildirishnomaSorandi", false)
+        set(v) = p.edit().putBoolean("bildirishnomaSorandi", v).apply()
+    var faolId: Long
+        get() = p.getLong("faolId", 0L)
+        set(v) = p.edit().putLong("faolId", v).apply()
 
-    val mashinaNomi: String get() = if (model.isBlank()) "Mashina" else listOf(model, yil).filter { it.isNotBlank() }.joinToString(" ")
-    val toldirilgan: Boolean get() = model.isNotBlank()
+    init { kochir() }
 
-    /** "yyyy-MM-dd" sanagacha qolgan kunlar, sana yo'q bo'lsa null. */
-    fun qolganKun(sana: String): Int? {
-        if (sana.isBlank()) return null
-        return try {
-            val d = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(sana) ?: return null
-            val bugun = Calendar.getInstance().apply {
-                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-            }.timeInMillis
-            ((d.time - bugun) / 86_400_000L).toInt()
-        } catch (_: Exception) { null }
+    /** Eski versiyadagi bitta mashina ma'lumotini ro'yxatga o'tkazish. */
+    private fun kochir() {
+        if (p.contains("mashinalar")) return
+        val eskiModel = p.getString("model", "") ?: ""
+        val royxat = JSONArray()
+        if (eskiModel.isNotBlank()) {
+            val m = Mashina(
+                id = System.currentTimeMillis(), model = eskiModel, yil = p.getString("yil", "") ?: "",
+                probeg = p.getInt("probeg", 0), yoqilgi = p.getString("yoqilgi", "Benzin") ?: "Benzin",
+                moyKm = p.getInt("moyKm", 0), moyInterval = p.getInt("moyInterval", 8000),
+                sugurta = p.getString("sugurta", "") ?: "", texosmotr = p.getString("texosmotr", "") ?: "",
+            )
+            royxat.put(m.json())
+            p.edit().putLong("faolId", m.id).apply()
+        }
+        p.edit().putString("mashinalar", royxat.toString()).apply()
     }
 
-    /** Moy almashtirishgacha qolgan km, ma'lumot yo'q bo'lsa null. */
-    val moyQoldi: Int? get() = if (moyKm <= 0 || probeg <= 0) null else moyKm + moyInterval - probeg
+    fun mashinalar(): List<Mashina> = try {
+        val a = JSONArray(p.getString("mashinalar", "[]") ?: "[]")
+        List(a.length()) { Mashina.oqi(a.getJSONObject(it)) }
+    } catch (_: Exception) { emptyList() }
+
+    private fun yoz(r: List<Mashina>) {
+        p.edit().putString("mashinalar", JSONArray().apply { r.forEach { put(it.json()) } }.toString()).apply()
+    }
+
+    /** Faol mashina: tanlangani yoki birinchisi. */
+    val faol: Mashina?
+        get() {
+            val r = mashinalar()
+            return r.firstOrNull { it.id == faolId } ?: r.firstOrNull()
+        }
+
+    fun saqla(m: Mashina) {
+        val r = mashinalar().toMutableList()
+        val i = r.indexOfFirst { it.id == m.id }
+        if (i >= 0) r[i] = m else r.add(m)
+        yoz(r)
+        if (r.size == 1 || faolId == 0L) faolId = m.id
+    }
+
+    fun ochir(id: Long) {
+        val r = mashinalar().filter { it.id != id }
+        yoz(r)
+        if (faolId == id) faolId = r.firstOrNull()?.id ?: 0L
+    }
+
+    val mashinaNomi: String get() = faol?.nomi ?: "Mashina"
 
     companion object {
         val MODELLAR = listOf(
             "Chevrolet Cobalt", "Chevrolet Gentra", "Chevrolet Nexia 3", "Chevrolet Spark", "Chevrolet Malibu",
             "Chevrolet Tracker", "Chevrolet Onix", "Chevrolet Damas", "Chevrolet Labo", "Chevrolet Lacetti",
-            "Chevrolet Captiva", "Chevrolet Equinox", "Chevrolet Tahoe", "Daewoo Nexia", "Daewoo Matiz",
-            "BYD Song Plus", "BYD Chazor", "BYD Han", "Kia K5", "Kia Sportage", "Hyundai Sonata", "Hyundai Elantra",
-            "Toyota Camry", "Chery Tiggo", "Haval Jolion", "Boshqa",
+            "Chevrolet Captiva", "Chevrolet Equinox", "Chevrolet Tahoe", "Chevrolet Traverse", "Daewoo Nexia",
+            "Daewoo Matiz", "BYD Song Plus", "BYD Chazor", "BYD Han", "Kia K5", "Kia Sportage", "Hyundai Sonata",
+            "Hyundai Elantra", "Hyundai Tucson", "Toyota Camry", "Toyota RAV4", "Chery Tiggo", "Haval Jolion", "Boshqa",
         )
         val YOQILGILAR = listOf("Benzin", "Metan", "Propan", "Dizel", "Gibrid", "Elektr")
     }

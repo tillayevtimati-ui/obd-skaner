@@ -41,7 +41,7 @@ class GaugeView(context: Context, private val maxOlcham: Int = 250) : View(conte
     private val oval = RectF()
 
     private val trek = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; color = Color.parseColor("#1B2747")
+        style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND
     }
     private val yoy = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
     private val nur = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
@@ -75,7 +75,7 @@ class GaugeView(context: Context, private val maxOlcham: Int = 250) : View(conte
             val r1 = r - qalin * 1.15f
             val r2 = r - qalin * (if (katt) 1.85f else 1.5f)
             val faol = i / 40f <= korinadigan && korinadigan > 0f
-            chiziq.color = if (faol) R2.shaffof(rang, 220) else Color.parseColor("#2A3758")
+            chiziq.color = if (faol) R2.shaffof(rang, 220) else R2.TREK_CHIZIQ
             chiziq.strokeWidth = (if (katt) 2.4f else 1.4f) * d
             canvas.drawLine(
                 cx + (r1 * Math.cos(burchak)).toFloat(), cy + (r1 * Math.sin(burchak)).toFloat(),
@@ -85,12 +85,13 @@ class GaugeView(context: Context, private val maxOlcham: Int = 250) : View(conte
         }
 
         trek.strokeWidth = qalin
+        trek.color = R2.TREK
         canvas.drawArc(oval, 135f, 270f, false, trek)
 
         if (korinadigan > 0.002f) {
             val och = Color.argb(255,
                 minOf(255, Color.red(rang) + 70), minOf(255, Color.green(rang) + 70), minOf(255, Color.blue(rang) + 70))
-            nur.color = R2.shaffof(rang, 55)
+            nur.color = R2.shaffof(rang, if (R2.qorongi) 55 else 35)
             nur.strokeWidth = qalin * 2.2f
             canvas.drawArc(oval, 135f, 270f * korinadigan, false, nur)
             yoy.shader = SweepGradient(cx, cy, intArrayOf(rang, och, rang), floatArrayOf(0f, 0.5f, 1f))
@@ -101,6 +102,7 @@ class GaugeView(context: Context, private val maxOlcham: Int = 250) : View(conte
             canvas.drawCircle(cx + (r * Math.cos(a)).toFloat(), cy + (r * Math.sin(a)).toFloat(), qalin * 0.32f, nuqta)
         }
 
+        katta.color = R2.OQ
         katta.textSize = s * (if (matn.length > 4) 0.17f else 0.22f)
         canvas.drawText(matn, cx, cy + katta.textSize * 0.36f, katta)
         if (birlik.isNotEmpty()) {

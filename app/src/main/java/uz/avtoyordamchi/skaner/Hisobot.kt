@@ -138,8 +138,10 @@ object PdfHisobot {
 
         bolim("Mashina")
         juft("Mashina", t.mashina)
-        if (profil.probeg > 0) juft("Probeg (egasi kiritgan)", "${profil.probeg} km")
-        juft("Yoqilg'i", profil.yoqilgi)
+        val fm = profil.faol
+        if (fm != null && fm.raqamBor) juft("Davlat raqami", "${fm.hudud} ${fm.raqam.uppercase()}")
+        if (fm != null && fm.probeg > 0) juft("Probeg (egasi kiritgan)", "${fm.probeg} km")
+        juft("Yoqilg'i", fm?.yoqilgi ?: "—")
         juft("VIN", t.vin ?: "o'qilmadi")
         juft("Protokol", t.protokol)
         juft("Akkumulyator", t.akk)
